@@ -1,0 +1,15 @@
+com\eventconnect\notificationservice\event\BookingStatusUpdatedEvent.class
+com\eventconnect\notificationservice\dto\NotificationResponse.class
+com\eventconnect\notificationservice\consumer\NotificationConsumer.class
+com\eventconnect\notificationservice\entity\Notification.class
+com\eventconnect\notificationservice\NotificationServiceApplication.class
+com\eventconnect\notificationservice\controller\NotificationController.class
+com\eventconnect\notificationservice\event\BookingCreatedEvent.class
+com\eventconnect\notificationservice\entity\NotificationType.class
+com\eventconnect\notificationservice\entity\Notification$NotificationBuilder.class
+com\eventconnect\notificationservice\exception\GlobalExceptionHandler.class
+com\eventconnect\notificationservice\service\NotificationService.class
+com\eventconnect\notificationservice\event\BookingStatus.class
+com\eventconnect\notificationservice\config\KafkaConsumerConfig.class
+com\eventconnect\notificationservice\repository\NotificationRepository.class
+com\eventconnect\notificationservice\exception\ResourceNotFoundException.class

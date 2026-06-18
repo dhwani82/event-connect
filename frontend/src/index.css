@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f8f7ff;
+  --bg-card: #ffffff;
+  --surface: #f3f0ff;
+  --violet: #6d28d9;
+  --violet-mid: #7c3aed;
+  --violet-light: #9f67ff;
+  --violet-pale: #ede9fe;
+  --violet-glow: rgba(109,40,217,0.15);
+  --ink: #0f0a1e;
+  --ink-soft: #3d3552;
+  --gray: #6b7280;
+  --gray-light: #e5e7eb;
+  --border: rgba(109,40,217,0.12);
+  --border-soft: rgba(0,0,0,0.07);
+  --shadow: 0 4px 24px rgba(109,40,217,0.08);
+  --shadow-lg: 0 12px 48px rgba(109,40,217,0.14);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+h1,h2,h3,h4 { font-family: 'Playfair Display', serif; }
+a { text-decoration: none; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--violet-light); border-radius: 3px; }
+::selection { background: var(--violet-pale); color: var(--violet); }
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--violet), var(--violet-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--violet), var(--violet-light));
+  color: white; border: none; border-radius: 50px;
+  padding: 0.8rem 2rem; font-weight: 600; font-size: 0.95rem;
+  cursor: pointer; transition: all 0.3s; display: inline-flex;
+  align-items: center; gap: 0.4rem; text-decoration: none;
+  box-shadow: 0 4px 20px var(--violet-glow);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(109,40,217,0.3); }
+.btn-outline {
+  background: transparent; color: var(--violet);
+  border: 1.5px solid var(--violet); border-radius: 50px;
+  padding: 0.8rem 2rem; font-weight: 600; font-size: 0.95rem;
+  cursor: pointer; transition: all 0.3s; display: inline-flex;
+  align-items: center; gap: 0.4rem; text-decoration: none;
+}
+.btn-outline:hover { background: var(--violet-pale); }
+.page-shell { padding: 7rem 5rem 5rem; max-width: 1280px; margin: 0 auto; }
+.eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--violet); margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.eyebrow::before { content: ''; width: 20px; height: 2px; background: var(--violet); border-radius: 2px; display: inline-block; }

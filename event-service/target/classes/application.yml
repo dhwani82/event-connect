@@ -1,0 +1,14 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: event-service
+  datasource:
+    url: jdbc:postgresql://postgres:5432/events_db?currentSchema=public
+    username: postgres
+    password: secret
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
