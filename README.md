@@ -39,6 +39,7 @@ event-connect/
 ├── docker-compose.yml     # Full stack orchestration
 ├── init.sql               # PostgreSQL database bootstrap
 ├── seed.ps1               # Sample data seeder (PowerShell)
+├── load-test.js           # k6 load / performance test script
 └── pom.xml                # Maven parent POM
 ```
 
@@ -47,6 +48,7 @@ event-connect/
 - **Java 17** and **Maven 3.8+**
 - **Node.js 18+** and **npm**
 - **Docker** and **Docker Compose**
+- **k6** (optional, for load testing) — [install guide](https://grafana.com/docs/k6/latest/set-up/install-k6/)
 - **Git** (optional)
 
 ## Quick Start
@@ -216,6 +218,90 @@ npm run preview
 | Kafka | 7.5.0 (Confluent) |
 | React | 19 |
 | Vite | 8 |
+| k6 | Load testing |
+
+## Load Testing (k6)
+
+Event Connect includes a **k6** load test (`load-test.js`) that exercises the full stack through the API gateway under realistic, mixed traffic. The test validates that the platform stays fault-tolerant at high concurrency and that read paths, write paths, and the Kafka-backed notification flow all perform acceptably.
+
+### What it tests
+
+Traffic is weighted to mirror typical usage:
+
+| Share | Endpoint | Purpose |
+|-------|----------|---------|
+| 50% | `GET /api/vendors` | Browse vendors (read-heavy) |
+| 25% | `GET /api/events` | List events |
+| 15% | `GET /api/notifications?customerId=` | Notification reads (downstream of Kafka consumer) |
+| 10% | `POST /api/bookings` | Create booking (write path → Kafka `booking-created`) |
+
+Each virtual user waits **0.5–1.5 s** between requests to simulate real user pacing.
+
+### Load profile
+
+The script uses a **ramping VU** scenario:
+
+| Stage | Duration | Virtual users |
+|-------|----------|---------------|
+| Warm up | 30s | 0 → 200 |
+| Ramp | 30s | 200 → 500 |
+| Ramp to peak | 1m | 500 → **1000** |
+| Hold at peak | 2m | 1000 |
+| Ramp down | 30s | 1000 → 0 |
+
+**Peak concurrency: 1000 virtual users** for 2 minutes.
+
+### Pass / fail thresholds
+
+| Metric | Threshold |
+|--------|-----------|
+| `http_req_failed` | &lt; 5% error rate at peak load |
+| `http_req_duration` | p95 &lt; 1500 ms |
+
+Custom metrics in the summary:
+
+- `errors` — rate of failed checks per request type
+- `booking_duration` — latency trend for `POST /api/bookings`
+
+### Prerequisites
+
+1. Full stack running (`docker compose up -d`) with gateway on **8090**
+2. Sample data seeded (`.\seed.ps1`) so GET endpoints return data
+3. For end-to-end booking success (201 responses), update the sample UUIDs at the top of `load-test.js` with real IDs from your seed output:
+
+```javascript
+const SAMPLE_EVENT_ID = '...';
+const SAMPLE_VENDOR_ID = '...';
+const SAMPLE_CUSTOMER_ID = '...';
+```
+
+If IDs are stale, booking POSTs may return 400 — the test still measures gateway throughput and latency, but won't fully exercise the Kafka publish path.
+
+### Run the test
+
+```bash
+cd event-connect
+k6 run load-test.js
+```
+
+Example with JSON output for reporting:
+
+```bash
+k6 run --out json=results.json load-test.js
+```
+
+### What a successful run looks like
+
+- **Vendors / events / notifications** — majority of requests return **200**
+- **Bookings** — **201** when sample UUIDs match seeded data
+- **Summary** — `http_req_failed` under 5%, p95 latency under 1.5s
+- **Docker** — all containers remain healthy (`docker compose ps`); no OOM or restart loops during the 2-minute peak
+
+Monitor services while the test runs:
+
+```bash
+docker compose logs -f api-gateway booking-service notification-service kafka
+```
 
 ## Troubleshooting
 
@@ -230,6 +316,12 @@ Notification service may log `LEADER_NOT_AVAILABLE` briefly while Kafka initiali
 
 **Empty vendor/event lists**  
 Run `seed.ps1` or create data through the UI signup and create flows.
+
+**k6 booking checks failing (not 201)**  
+Update `SAMPLE_EVENT_ID`, `SAMPLE_VENDOR_ID`, and `SAMPLE_CUSTOMER_ID` in `load-test.js` with IDs from a fresh `seed.ps1` run.
+
+**k6 thresholds exceeded**  
+Check `docker compose ps` and service logs. Postgres connection pool exhaustion or Kafka lag under 1000 VUs are common causes — scale down stages in `load-test.js` for local machines with limited RAM.
 
 ## License
 
