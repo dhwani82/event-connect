@@ -27,7 +27,6 @@ jobs:
 
       - name: Build all Java services
         run: mvn clean package -DskipTests --batch-mode
-        working-directory: event-connect
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -42,52 +41,7 @@ jobs:
       - name: Build and push all images
         run: |
           ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-          
+
           for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service; do
             echo "Building $SERVICE..."
-            docker build -t $ECR/event-connect/$SERVICE:latest ./event-connect/$SERVICE
-            docker push $ECR/event-connect/$SERVICE:latest
-          done
-
-          echo "Building frontend..."
-          docker build -t $ECR/event-connect/frontend:latest ./event-connect/frontend
-          docker push $ECR/event-connect/frontend:latest
-
-  deploy:
-    name: Deploy to EC2
-    runs-on: ubuntu-latest
-    needs: build-and-push
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 30m
-          script: |
-            ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-
-            # Login to ECR
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-              docker login --username AWS --password-stdin $ECR
-
-            # Pull latest images
-            for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service frontend; do
-              docker pull $ECR/event-connect/$SERVICE:latest
-            done
-
-            # Update docker-compose.prod.yml with ECR registry
-            cd ~/event-connect/event-connect
-            export ECR_REGISTRY=$ECR
-
-            # Restart stack
-            docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d
-
-            # Cleanup
-            docker image prune -f
+            docker build -t $ECR/event-connect/$SERVICE:latest
