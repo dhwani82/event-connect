@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-
 jobs:
   build-and-push:
     name: Build and Push to ECR
@@ -33,15 +29,52 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          region: us-east-1
 
       - name: Build and push all images
         run: |
-          ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
           for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service; do
             echo "Building $SERVICE..."
-            docker build -t $ECR/event-connect/$SERVICE:latest
+            docker build -t $ECR/event-connect/$SERVICE:latest ./$SERVICE
+            docker push $ECR/event-connect/$SERVICE:latest
+          done
+
+          echo "Building frontend..."
+          docker build -t $ECR/event-connect/frontend:latest ./frontend
+          docker push $ECR/event-connect/frontend:latest
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+            aws ecr get-login-password --region us-east-1 | \
+              docker login --username AWS --password-stdin $ECR
+
+            for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service frontend; do
+              docker pull $ECR/event-connect/$SERVICE:latest
+            done
+
+            cd ~/event-connect
+            export ECR_REGISTRY=$ECR
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
