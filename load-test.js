@@ -1,5 +1,6 @@
 // load-test.js
 // Run with: k6 run load-test.js
+// Docker:  k6 run -e BASE_URL=http://host.docker.internal:8090 load-test.js
 //
 // This simulates realistic traffic against the EventConnect API Gateway:
 // - browsing vendors (GET, read-heavy, most common action)
@@ -11,7 +12,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
-const BASE_URL = 'http://localhost:8090';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8090';
 
 // Custom metrics so the summary clearly shows error rate and booking latency
 const errorRate = new Rate('errors');

@@ -1,0 +1,93 @@
+name: Build and Deploy EventConnect
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+jobs:
+  build-and-push:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build all Java services
+        run: mvn clean package -DskipTests --batch-mode
+        working-directory: event-connect
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push all images
+        run: |
+          ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          
+          for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service; do
+            echo "Building $SERVICE..."
+            docker build -t $ECR/event-connect/$SERVICE:latest ./event-connect/$SERVICE
+            docker push $ECR/event-connect/$SERVICE:latest
+          done
+
+          echo "Building frontend..."
+          docker build -t $ECR/event-connect/frontend:latest ./event-connect/frontend
+          docker push $ECR/event-connect/frontend:latest
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+            # Login to ECR
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+              docker login --username AWS --password-stdin $ECR
+
+            # Pull latest images
+            for SERVICE in api-gateway user-service vendor-service event-service booking-service notification-service frontend; do
+              docker pull $ECR/event-connect/$SERVICE:latest
+            done
+
+            # Update docker-compose.prod.yml with ECR registry
+            cd ~/event-connect/event-connect
+            export ECR_REGISTRY=$ECR
+
+            # Restart stack
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
+
+            # Cleanup
+            docker image prune -f
