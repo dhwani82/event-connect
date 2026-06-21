@@ -45,7 +45,9 @@ jobs:
           done
 
           echo "Building frontend..."
-          docker build -t $ECR/event-connect/frontend:latest ./frontend
+          docker build \
+            --build-arg VITE_API_URL=http://44.203.88.176:8090 \
+            -t $ECR/event-connect/frontend:latest ./frontend
           docker push $ECR/event-connect/frontend:latest
 
   deploy:
@@ -72,6 +74,7 @@ jobs:
             done
 
             cd ~/event-connect
+            git pull origin main
             export ECR_REGISTRY=$ECR
             docker compose -f docker-compose.prod.yml down
             docker compose -f docker-compose.prod.yml up -d

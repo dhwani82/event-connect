@@ -1,0 +1,4 @@
+user-service:
+    image: 600627347095.dkr.ecr.us-east-1.amazonaws.com/event-connect/user-service:latest
+    restart: always
+    ...

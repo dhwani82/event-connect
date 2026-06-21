@@ -1,7 +1,7 @@
 # EventConnect Data Seeder
 # Run: Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process; .\seed.ps1
 
-$BASE = "http://localhost:8090"
+$BASE = "http://44.203.88.176:8090"
 
 function Post($path, $body) {
     $json = $body | ConvertTo-Json

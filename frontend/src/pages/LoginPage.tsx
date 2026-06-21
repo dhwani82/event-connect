@@ -1,23 +1,42 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { userApi } from '../api/client';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const submit = async () => {
+    if (!form.email.trim() || !form.password) {
+      setErrorMsg('Please enter your email and password.');
+      setStatus('error');
+      return;
+    }
     setStatus('loading');
+    setErrorMsg('');
     try {
-      const res = await userApi.login({ email: form.email, password: form.password });
+      const res = await userApi.login({ email: form.email.trim(), password: form.password });
       const user = res.data;
       localStorage.setItem('ec_user', JSON.stringify(user));
       if (user.role === 'CUSTOMER') navigate('/dashboard/customer');
       else navigate('/dashboard/vendor');
-    } catch {
+    } catch (err: unknown) {
       setStatus('error');
+      if (axios.isAxiosError(err)) {
+        if (!err.response) {
+          setErrorMsg('Cannot reach the server. Make sure Docker is running (docker compose up -d).');
+        } else if (err.response.status === 401) {
+          setErrorMsg('Invalid email or password. Try password123 if using seed data.');
+        } else {
+          setErrorMsg(err.response.data?.message ?? 'Login failed. Please try again.');
+        }
+      } else {
+        setErrorMsg('Something went wrong. Please try again.');
+      }
     }
   };
 
@@ -37,7 +56,7 @@ export default function LoginPage() {
             <label>Password</label>
             <input type="password" placeholder="Your password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} onKeyDown={e => e.key === 'Enter' && submit()} />
           </div>
-          {status === 'error' && <p className="form-error">Invalid email or password. Please try again.</p>}
+          {status === 'error' && errorMsg && <p className="form-error">{errorMsg}</p>}
           <motion.button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '1rem', borderRadius: '12px', opacity: status === 'loading' ? 0.7 : 1 }}
             onClick={submit} disabled={status === 'loading'} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
             {status === 'loading' ? 'Signing in...' : 'Sign In →'}
