@@ -186,7 +186,7 @@ The frontend API client points to the gateway:
 
 ```typescript
 // frontend/src/api/client.ts
-baseURL: 'http://localhost:8090'
+baseURL: ''
 ```
 
 ## Database
